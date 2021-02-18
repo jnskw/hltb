@@ -52,8 +52,8 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 .skip(2)
                 .next()
             {
-                let word = if n == "1" { "game" } else { "games" };
-                println!("Found {} matching {}", n, word);
+                let s = if n == "1" { "" } else { "s" };
+                println!("Found {} matching game{}\n", n, s);
             }
         }
         None => {
@@ -65,8 +65,8 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let selector_list_item = Selector::parse(".search_list_details").unwrap();
     let games = doc
         .select(&selector_list_item)
-        .map(parse_game)
-        .take(args.number.unwrap_or(5));
+        .take(args.number.unwrap_or(5))
+        .map(parse_game);
 
     draw_game_table(games);
 
