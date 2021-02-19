@@ -16,8 +16,6 @@ Completionist: 12 Hours
 Main Story: 11½ Hours
 Main + Extra: 14½ Hours
 Completionist: 17½ Hours
-
-
 </pre>
 
 ## Installation
