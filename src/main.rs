@@ -1,13 +1,13 @@
 use std::process::exit;
 
 use argh::FromArgs;
-use prettytable::{cell, format, row, Table};
+use itertools::Itertools;
 use scraper::{ElementRef, Selector};
 
 const HLTB_URL: &str = "https://howlongtobeat.com/search_results";
 
 #[derive(Debug, FromArgs)]
-/// Test
+/// hltb only really only needs the game argument
 struct Args {
     #[argh(positional)]
     game: Vec<String>,
@@ -19,9 +19,7 @@ struct Args {
 #[derive(Debug)]
 struct Game {
     name: String,
-    main: String,
-    extra: String,
-    completionist: String,
+    entries: Vec<(String, String)>,
 }
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
@@ -68,37 +66,35 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         .take(args.number.unwrap_or(5))
         .map(parse_game);
 
-    draw_game_table(games);
+    games.for_each(|g| print_game(&g));
 
     Ok(())
 }
 
 fn parse_game(item: ElementRef) -> Game {
     let selector_title = Selector::parse("a").unwrap();
-    let selector_time = Selector::parse(".search_list_tidbit").unwrap();
+    let selector_time =
+        Selector::parse(".search_list_tidbit, .search_list_tidbit_short, .search_list_tidbit_long")
+            .unwrap();
 
-    // TODO less unwrap 🥺
     let name = htmlescape::decode_html(&item.select(&selector_title).next().unwrap().inner_html())
         .unwrap();
-    let mut times = item.select(&selector_time);
-    let main = times.nth(1).unwrap().inner_html().trim().into();
-    let extra = times.nth(1).unwrap().inner_html().trim().into();
-    let completionist = times.nth(1).unwrap().inner_html().trim().into();
 
-    Game {
-        name,
-        main,
-        extra,
-        completionist,
-    }
+    let times = item.select(&selector_time);
+    let entries = times
+        .map(|e| e.inner_html().trim().into())
+        .tuples::<(String, String)>()
+        .collect();
+
+    Game { name, entries }
 }
 
-fn draw_game_table(games: impl IntoIterator<Item = Game>) {
-    let mut table = Table::new();
-    table.set_format(*format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
-    table.set_titles(row![b->"Game", b->"Main Story", b->"Main+Extra", b->"Completionist"]);
-    games.into_iter().for_each(|game| {
-        table.add_row(row![game.name, game.main, game.extra, game.completionist]);
-    });
-    table.printstd();
+fn print_game(game: &Game) {
+    let entries: String = game
+        .entries
+        .iter()
+        .map(|e| format!("{}: {}\n", e.0, e.1))
+        .collect();
+    let bold_name = format!("\x1B[1m{}\x1B[0m", game.name);
+    println!("{}\n{}", bold_name, entries);
 }
