@@ -16,59 +16,73 @@ struct Args {
     number: Option<usize>,
 }
 
+fn main() {
+    let args: Args = argh::from_env();
+    let game = args.game.join(" ");
+
+    let doc = search(&game);
+
+    match parse_result_amount(&doc) {
+        Some(amount) => {
+            let s = if amount == "1" { "" } else { "s" };
+            println!("Found {} matching game{}\n", amount, s);
+        }
+        None => {
+            println!("Could not find any games for query '{}'", game);
+            exit(1);
+        }
+    }
+
+    let games = parse_games(&doc, args.number);
+    games.iter().for_each(|g| print_game(&g));
+}
+
 #[derive(Debug)]
 struct Game {
     name: String,
     entries: Vec<(String, String)>,
 }
 
-fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
-    let args: Args = argh::from_env();
-    let game = args.game.join(" ");
-
+fn search(game: &str) -> scraper::Html {
     let form_data = &[
-        ("queryString", game.as_str()),
+        ("queryString", game),
         ("t", "games"),
         ("sorthead", "popular"),
     ];
 
     let res = ureq::post(HLTB_URL)
         .query("page", "1")
-        .send_form(form_data)?
-        .into_string()?;
+        .send_form(form_data)
+        .expect("Request to howlongtobeat.com failed")
+        .into_string()
+        .expect("Could not read response");
 
-    let doc = scraper::Html::parse_document(&res);
+    scraper::Html::parse_document(&res)
+}
 
+fn parse_result_amount(doc: &scraper::Html) -> Option<String> {
     let selector_games_number = Selector::parse("h3").unwrap();
-    match doc.select(&selector_games_number).next() {
+    return match doc.select(&selector_games_number).next() {
         Some(games_number) => {
             // Get the number of games from the sentence `We Found 25 Games for \"gris\"`
-            if let Some(n) = games_number
+            games_number
                 .inner_html()
                 .as_str()
                 .split_whitespace()
                 .skip(2)
                 .next()
-            {
-                let s = if n == "1" { "" } else { "s" };
-                println!("Found {} matching game{}\n", n, s);
-            }
+                .map(str::to_string)
         }
-        None => {
-            println!("Could not find a game for query '{}'", game);
-            exit(1);
-        }
-    }
+        None => None,
+    };
+}
 
+fn parse_games(doc: &scraper::Html, n: Option<usize>) -> Vec<Game> {
     let selector_list_item = Selector::parse(".search_list_details").unwrap();
-    let games = doc
-        .select(&selector_list_item)
-        .take(args.number.unwrap_or(5))
-        .map(parse_game);
-
-    games.for_each(|g| print_game(&g));
-
-    Ok(())
+    doc.select(&selector_list_item)
+        .take(n.unwrap_or(5))
+        .map(parse_game)
+        .collect()
 }
 
 fn parse_game(item: ElementRef) -> Game {
@@ -77,8 +91,14 @@ fn parse_game(item: ElementRef) -> Game {
         Selector::parse(".search_list_tidbit, .search_list_tidbit_short, .search_list_tidbit_long")
             .unwrap();
 
-    let name = htmlescape::decode_html(&item.select(&selector_title).next().unwrap().inner_html())
-        .unwrap();
+    let name = htmlescape::decode_html(
+        &item
+            .select(&selector_title)
+            .next()
+            .expect("Could not find game title")
+            .inner_html(),
+    )
+    .unwrap();
 
     let times = item.select(&selector_time);
     let entries = times
