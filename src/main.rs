@@ -11,6 +11,7 @@ const HLTB_URL: &str = "https://howlongtobeat.com/search_results";
 struct Args {
     #[argh(positional)]
     game: Vec<String>,
+
     #[argh(option, short = 'n')]
     /// the maximum number of games to display (Default 5)
     number: Option<usize>,
