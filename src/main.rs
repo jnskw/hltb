@@ -98,14 +98,15 @@ fn parse_game(item: ElementRef) -> Game {
         Selector::parse(".search_list_tidbit, .search_list_tidbit_short, .search_list_tidbit_long")
             .unwrap();
 
-    let name = htmlescape::decode_html(
+    let mut name = String::new();
+    html_escape::decode_html_entities_to_string(
         &item
             .select(&selector_title)
             .next()
             .expect("Could not find game title")
             .inner_html(),
-    )
-    .unwrap();
+        &mut name,
+    );
 
     let times = item.select(&selector_time);
     let entries = times
