@@ -19,6 +19,11 @@ struct Args {
 
 fn main() {
     let args: Args = argh::from_env();
+    if args.game.is_empty() {
+        println!("Usage: hltb <game name>\nExample: hltb ori and the");
+        exit(1)
+    }
+
     let game = args.game.join(" ");
 
     let doc = search(&game);
