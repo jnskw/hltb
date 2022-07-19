@@ -58,6 +58,7 @@ fn search(game: &str) -> scraper::Html {
 
     let res = ureq::post(HLTB_URL)
         .query("page", "1")
+        .set("Referer", "https://howlongtobeat.com")
         .send_form(form_data)
         .expect("Request to howlongtobeat.com failed")
         .into_string()
